@@ -1,0 +1,4 @@
+/Users/andreiataman/M3/Particles/build/CMakeFiles/main.dir
+/Users/andreiataman/M3/Particles/build/CMakeFiles/copy_resources.dir
+/Users/andreiataman/M3/Particles/build/CMakeFiles/edit_cache.dir
+/Users/andreiataman/M3/Particles/build/CMakeFiles/rebuild_cache.dir
