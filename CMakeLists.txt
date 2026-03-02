@@ -19,10 +19,21 @@ file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp src/*.h src/*.c)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
+target_compile_options(${PROJECT_NAME} PRIVATE
+    -O3
+    -ffast-math
+    -march=native
+    -flto
+    -Wall
+    -Wextra
+    -fno-rtti             # If you don’t use dynamic_cast or typeid
+)
+
 target_link_libraries(${PROJECT_NAME}
     ${OPENGL_LIBRARIES}
     glfw
 )
+
 set(SHADER_FILES
     ${CMAKE_SOURCE_DIR}/src/vertex.glsl
     ${CMAKE_SOURCE_DIR}/src/fragment.glsl

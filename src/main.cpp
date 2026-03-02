@@ -1,14 +1,12 @@
 #include "glad.h"
 #include "shader.h"
 #include <GLFW/glfw3.h>
+#include <cstddef>
 #include <random>
 
 void framebuffer_size_callback(GLFWwindow *window, int width,
                                int height);
 void processInput(GLFWwindow *window);
-
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
 
 struct Particle {
     Particle(glm::vec2 pos, glm::vec2 vel) {
@@ -27,8 +25,8 @@ int main() {
                    GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    GLFWwindow *window = glfwCreateWindow(
-        SCR_WIDTH, SCR_HEIGHT, "Particles", NULL, NULL);
+    GLFWwindow *window =
+        glfwCreateWindow(800, 600, "Particles", NULL, NULL);
 
     assert(window && "Faile to create Window");
 
@@ -40,25 +38,30 @@ int main() {
            "Failed to initialize GLAD");
 
     glEnable(GL_PROGRAM_POINT_SIZE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
     float vertices[] = {0.0f, 0.0f};
 
+    int particles_size = 1000;
     std::vector<Particle> particles;
+    particles.reserve(particles_size);
 
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dist(-1, 1);
+    std::uniform_real_distribution<> vel(-0.2f, 0.2f);
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < particles_size; ++i) {
         Particle p({dist(gen), dist(gen)},
-                   {dist(gen), dist(gen)});
+                   {vel(gen), vel(gen)});
         particles.push_back(p);
     }
 
     Shader shader("vertex.glsl", "fragment.glsl");
     shader.use();
 
-    unsigned int VBO, VAO, instanceVBO;
+    GLuint VBO, VAO, instanceVBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &instanceVBO);
@@ -71,30 +74,33 @@ int main() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE,
                           2 * sizeof(float), (void *)0);
-    std::vector<glm::vec2> pos;
-    for (const auto &p : particles)
-        pos.push_back(p.position);
 
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, pos.size() * sizeof(glm::vec2),
-                 pos.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,
+                 particles.size() * sizeof(glm::vec2) * 2,
+                 particles.data(), GL_STREAM_DRAW);
 
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
-                          2 * sizeof(float), (void *)0);
+                          sizeof(Particle), (void *)0);
+
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(Particle),
+                          (void *)sizeof(glm::vec2));
     glVertexAttribDivisor(1, 1);
+    glVertexAttribDivisor(2, 1);
 
     // glm::vec2 gravity(0.0f, -4.9f);
-    float lastTime = 0.0f;
+    float lastTime = glfwGetTime();
+    std::vector<glm::vec2> impulses;
+
     while (!glfwWindowShouldClose(window)) {
         float currentTime = glfwGetTime();
         float deltaTime = currentTime - lastTime;
         lastTime = currentTime;
 
         for (auto &p : particles) {
-            float speed = glm::dot(p.velocity, p.velocity); // same as glm::length but no sqrt
-            shader.set_float("speed", speed);
-
             // p.velocity += gravity * deltaTime;
             p.position += p.velocity * deltaTime;
 
@@ -118,6 +124,7 @@ int main() {
                 // p.velocity.x *= -0.85;
                 p.velocity.x *= -1.0f;
             }
+
             float minDist = 0.02f;
             for (auto &y : particles) {
                 if (&p == &y)
@@ -137,6 +144,7 @@ int main() {
                     if (velAlongNormal < 0) {
                         glm::vec2 impulse =
                             -velAlongNormal * normal;
+                        impulses.push_back(impulse);
                         p.velocity += impulse;
                         y.velocity -= impulse;
                     }
@@ -146,16 +154,13 @@ int main() {
 
         processInput(window);
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
         void *ptr = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        std::vector<glm::vec2> pos;
-        for (const auto &p : particles)
-            pos.push_back(p.position);
-
-        memcpy(ptr, pos.data(), pos.size() * sizeof(glm::vec2));
+        memcpy(ptr, particles.data(),
+               particles.size() * sizeof(Particle));
         glUnmapBuffer(GL_ARRAY_BUFFER);
 
         glBindVertexArray(VAO);

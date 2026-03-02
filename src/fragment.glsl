@@ -1,3 +1,20 @@
 #version 410 core
+in vec2 velocity;
 out vec4 FragColor;
-void main() { FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f); }
+
+vec3 hsv2rgb(vec3 c) {
+    vec3 rgb = clamp(
+        abs(mod(c.x * 6.0 + vec3(0, 4, 2), 6.0) - 3.0) - 1.0,
+        0.0, 1.0);
+    rgb = rgb * rgb * (3.0 - 2.0 * rgb);
+    return c.z * mix(vec3(1.0), rgb, c.y);
+}
+
+void main() {
+    float angle =
+        atan(velocity.y, velocity.x); // range [-PI, PI]
+    float hue = (angle + 3.14159265) / (2.0 * 3.14159265);
+
+    vec3 color = hsv2rgb(vec3(hue, 1.0, 1.0));
+    FragColor = vec4(color, 1.0);
+}
